@@ -41,6 +41,19 @@ class YOLOValuationModule(nn.Module):
         layers.append(v_color)
         v_shape = YOLOShapeValuationFunction()
         vfs['shape'] = v_shape
+
+        _v = YOLOLargerValuationFunction()
+        vfs['larger'] = _v
+        _v = YOLOOnTopValuationFunction()
+        vfs['above'] = _v
+        _v = YOLOLeftofValuationFunction()
+        vfs['leftof'] = _v
+
+        #front:2:object,object
+        #rightside:1:object
+        #leftside:1:object
+
+
         v_in = YOLOInValuationFunction()
         vfs['in'] = v_in
         layers.append(v_in)
@@ -113,7 +126,10 @@ class YOLOValuationModule(nn.Module):
         """
         term_index = self.lang.term_index(term)
         if term.dtype.name == 'object':
-            return zs[:, term_index]
+            out = zs[:, term_index]
+            if len(out.shape) == 1:
+                out = out.unsqueeze(0)
+            return out
         elif term.dtype.name == 'color' or term.dtype.name == 'shape':
             return self.attrs[term]
         elif term.dtype.name == 'image':
@@ -138,8 +154,7 @@ class SlotAttentionValuationModule(nn.Module):
         super().__init__()
         self.lang = lang
         self.device = device
-        self.colors = ["cyan", "blue", "yellow",
-                       "purple", "red", "green", "gray", "brown"]
+        self.colors = ["cyan", "blue", "yellow", "purple", "red", "green", "gray", "brown"]
         self.shapes = ["sphere", "cube", "cylinder"]
         self.sizes = ["large", "small"]
         self.materials = ["rubber", "metal"]
@@ -176,6 +191,8 @@ class SlotAttentionValuationModule(nn.Module):
         vfs['leftside'] = v_leftside
         v_front = SlotAttentionFrontValuationFunction(device)
         vfs['front'] = v_front
+
+
 
         if pretrained:
             vfs['rightside'].load_state_dict(torch.load(

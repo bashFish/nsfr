@@ -7,6 +7,45 @@ from neural_utils import MLP, LogisticRegression
 # Valuation functions for YOLO #
 ################################
 
+
+class YOLOLargerValuationFunction(nn.Module):
+
+    def __init__(self):
+        super(YOLOLargerValuationFunction, self).__init__()
+
+    def forward(self, z_1, z_2):
+        if z_1.sum() == 0. or z_2.sum() == 0.:
+            return torch.tensor(0.)
+
+        larger = ((z_1[0][-1] - z_2[0][-1])/500.).clamp(min=0.,max=1.)
+        return larger
+
+class YOLOOnTopValuationFunction(nn.Module):
+
+    def __init__(self):
+        super(YOLOOnTopValuationFunction, self).__init__()
+
+    def forward(self, z_1, z_2):
+        if z_1.sum() == 0. or z_2.sum() == 0.:
+            return torch.tensor(0.)
+
+        diff = z_1[0][-3:-1] - z_2[0][-3:-1]
+        ontop = diff/torch.sqrt(diff.pow(2).sum())
+        return ontop[1].clamp(min=0.,max=1.)
+
+class YOLOLeftofValuationFunction(nn.Module):
+
+    def __init__(self):
+        super(YOLOLeftofValuationFunction, self).__init__()
+
+    def forward(self, z_1, z_2):
+        if z_1.sum() == 0. or z_2.sum() == 0.:
+            return torch.tensor(0.)
+
+        diff = z_1[0][-3:-1] - z_2[0][-3:-1]
+        ontop = diff/torch.sqrt(diff.pow(2).sum())
+        return ontop[0].clamp(min=0.,max=1.)
+
 class YOLOColorValuationFunction(nn.Module):
     """The function v_color.
     """
@@ -26,6 +65,7 @@ class YOLOColorValuationFunction(nn.Module):
             A batch of probabilities.
         """
         z_color = z[:, 4:7]
+
         return (a * z_color).sum(dim=1)
 
 
@@ -70,7 +110,7 @@ class YOLOInValuationFunction(nn.Module):
         Returns:
             A batch of probabilities.
         """
-        return z[:, -1]
+        return z[:, 10]
 
 
 class YOLOClosebyValuationFunction(nn.Module):
@@ -270,6 +310,7 @@ class SlotAttentionColorValuationFunction(nn.Module):
         Returns:
             A batch of probabilities.
         """
+        print(z)
         z_color = z[:, 11:19]
         return (a * z_color).sum(dim=1)
 

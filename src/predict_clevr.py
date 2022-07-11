@@ -5,11 +5,13 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 import torch
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
-
+import csv
 from nsfr_utils import denormalize_clevr, get_data_loader, get_prob, get_nsfr_model
 from nsfr_utils import save_images_with_captions, to_plot_images_clevr, generate_captions
 from logic_utils import get_lang
 
+from detr.detr import *
+from torchvision import transforms
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -18,7 +20,7 @@ def get_args():
     parser.add_argument("--e", type=int, default=10,
                         help="The maximum number of objects in one image")
     parser.add_argument(
-        "--dataset", choices=["clevr-hans3", "clevr-hans7"], help="Use clevr-hans dataset.")
+        "--dataset", choices=["clevr-hans3", "clevr-hans7", "dalle"], help="Use clevr-hans dataset.")
     parser.add_argument("--dataset-type", default="clevr",
                         help="kandinsky or clevr")
     parser.add_argument('--device', default='cpu',
@@ -43,33 +45,47 @@ def predict(NSFR, loader, args, device, writer, split='train'):
     count = 0
     for i, sample in tqdm(enumerate(loader, start=0)):
         # to cuda
-        imgs, target_set = map(lambda x: x.to(device), sample)
+        #imgs, target_set = map(lambda x: x.to(device), sample)
+
+        path, feats, img = sample
+        img = np.array(transforms.ToPILImage(mode='RGB')(img[0]))
+
 
         # infer and predict the target probability
-        V_T = NSFR(imgs)
+        V_T = NSFR(sample)
         #print(valuations_to_string(V_T, NSFR.atoms, NSFR.pm.e))
         predicted = get_prob(V_T, NSFR, args)
 
         predicted_list.extend(
             list(np.argmax(predicted.detach().cpu().numpy(), axis=1)))
-        target_list.extend(
-            list(np.argmax(target_set.detach().cpu().numpy(), axis=1)))
+        #target_list.extend(
+        #    list(np.argmax(target_set.detach().cpu().numpy(), axis=1)))
 
         if i < 1:
             if args.dataset_type == 'clevr':
                 writer.add_images(
                     'images', denormalize_clevr(imgs).detach().cpu(), 0)
             else:
-                writer.add_images(
-                    'images', imgs.detach().cpu(), 0)
+                pass
+                #writer.add_images(
+                #    'images', img, 0)
             writer.add_text('V_T', NSFR.get_valuation_text(V_T), 0)
         if args.plot:
-            imgs = to_plot_images_clevr(imgs)
+            #imgs = np.array(img) #to_plot_images_clevr(img)
             captions = generate_captions(
                 V_T, NSFR.atoms, NSFR.pm.e, th=0.33)
             save_images_with_captions(
-                imgs, captions, folder='result/clevr/' + args.dataset + '/' + split + '/', img_id_start=count, dataset=args.dataset)
+                [img], captions, folder='result/dalle/' + args.dataset + '/' + split + '/', img_id_start=count, dataset=args.dataset)
         count += V_T.size(0)  # batch size
+
+        with open('result/dalle/summary_fresh_2.csv', 'a+', newline='') as write_obj:
+            # Create a writer object from csv module
+            csv_writer = csv.writer(write_obj)
+            # Add contents of list as last row in the csv file
+            csv_writer.writerow([path, captions])
+        #if i > 5:
+        #    break
+
     predicted = predicted_list
     target = target_list
     return accuracy_score(target, predicted), confusion_matrix(target, predicted)
@@ -77,7 +93,7 @@ def predict(NSFR, loader, args, device, writer, split='train'):
 
 def main():
     args = get_args()
-    assert args.dataset_type == 'clevr', 'Use clever dataset for this script.'
+    #assert args.dataset_type == 'clevr', 'Use clever dataset for this script.'
     print('args ', args)
     if args.no_cuda:
         device = torch.device('cpu')
@@ -102,16 +118,18 @@ def main():
     if len(args.device.split(',')) > 1:
         NSFR = nn.DataParallel(NSFR)
 
+
     # validation split
-    print("Predicting on validation data set...")
-    acc_val, cmat_val = predict(
-        NSFR, val_loader, args, device, writer, split='val')
+    #print("Predicting on validation data set...")
+    #acc_val, cmat_val = predict(
+    #    NSFR, val_loader, args, device, writer, split='val')
 
     print("Predicting on training data set...")
     # training split
     acc, cmat = predict(
-        NSFR, train_loader, args, device, writer, split='train')
+        NSFR, val_loader, args, device, writer, split='train')
 
+    """
     print("Predicting on test data set...")
     # test split
     acc_test, cmat_test = predict(
@@ -129,7 +147,7 @@ def main():
     print(cmat_val)
     print('test:')
     print(cmat_test)
-
+    """
 
 if __name__ == "__main__":
     main()

@@ -1,0 +1,4 @@
+object:obj0,obj1,obj2,obj3,obj4
+color:red,blue,other
+shape:sphere,cube,cylinder
+image:img

@@ -5,11 +5,14 @@ import torch
 
 import data_clevr
 import data_kandinsky
-from percept import SlotAttentionPerceptionModule, YOLOPerceptionModule
+import data_dalle
+from percept import SlotAttentionPerceptionModule, YOLOPerceptionModule, DETRMixPerceptionModule
 from facts_converter import FactsConverter
 from nsfr import NSFReasoner
 from logic_utils import build_infer_module, generate_atoms
 from valuation import SlotAttentionValuationModule, YOLOValuationModule
+from PIL import Image
+
 attrs = ['color', 'shape', 'material', 'size']
 
 
@@ -79,13 +82,14 @@ def save_images_with_captions(imgs, captions, folder, img_id_start, dataset):
     elif dataset == 'red-triangle':
         figsize = (10, 8)
     else:
-        figsize = (12, 6)
+        figsize = (14, 10)
     # imgs should be denormalized.
     img_id = img_id_start
     for i, img in enumerate(imgs):
         plt.figure(figsize=figsize, dpi=80)
         plt.imshow(img)
         plt.xlabel(captions[i])
+        print(captions[i])
         plt.tight_layout()
         plt.savefig(folder+str(img_id)+'.png')
         img_id += 1
@@ -118,9 +122,26 @@ def get_data_loader(args):
         return get_kandinsky_loader(args)
     elif args.dataset_type == 'clevr':
         return get_clevr_loader(args)
+    elif args.dataset_type == 'dalle':
+        return get_dalle_loader(args)
     else:
         assert 0, 'Invalid dataset type: ' + args.dataset_type
 
+import torchvision
+import os
+import random
+
+def get_dalle_loader(args):
+    dataset_val = data_dalle.Dalle(
+        args.dataset, 'train'
+    )
+    val_loader = torch.utils.data.DataLoader(
+        dataset_val,
+        shuffle=False,
+        batch_size=args.batch_size,
+        num_workers=args.num_workers,
+    )
+    return None, val_loader, None
 
 def get_clevr_loader(args):
     dataset_train = data_clevr.CLEVRHans(
@@ -198,6 +219,9 @@ def get_prob(v_T, NSFR, args):
         if args.dataset == 'clevr-hans7':
             predicted = NSFR.predict_multi(
                 v=v_T, prednames=['kp1', 'kp2', 'kp3', 'kp4', 'kp5', 'kp6', 'kp7'])
+    elif args.dataset_type == 'dalle':
+        predicted = NSFR.predict_multi(
+            v=v_T, prednames=['kp1', 'kp2', 'kp3'])
     return predicted
 
 
@@ -209,6 +233,9 @@ def get_nsfr_model(args, lang, clauses, atoms, bk, device):
     elif args.dataset_type == 'clevr':
         PM = SlotAttentionPerceptionModule(e=10, d=19, device=device)
         VM = SlotAttentionValuationModule(lang=lang,  device=device)
+    elif args.dataset_type == 'dalle':
+        PM = DETRMixPerceptionModule(e=5, d=19, device=device)
+        VM = YOLOValuationModule(lang=lang,  device=device, dataset='')
     else:
         assert False, "Invalid dataset type: " + str(args.dataset_type)
     FC = FactsConverter(lang=lang, perception_module=PM,
