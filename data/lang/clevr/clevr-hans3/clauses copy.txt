@@ -1,0 +1,1 @@
+kp1(X):-in(O1,X),in(O2,X),size(O1,small),shape(O1,sphere),color(O1,blue),size(O2,large),shape(O2,cube),color(O2,red),rightside(O2).

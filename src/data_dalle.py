@@ -36,7 +36,7 @@ def load_images_and_labels():
     """Load image paths and labels for kandinsky dataset.
     """
     from pathlib import Path
-    pathlist = Path("/home/bjoern.aa/Dalle_Logic/dalle-mini/results").glob('*/*')
+    pathlist = Path("/home/bjoern.aa/Dalle_Logic/dalle-mini/results/task3").glob('*')
     all_paths = []
     for path in pathlist:
         all_paths.append(str(path))

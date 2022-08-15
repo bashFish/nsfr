@@ -78,7 +78,7 @@ def predict(NSFR, loader, args, device, writer, split='train'):
                 [img], captions, folder='result/dalle/' + args.dataset + '/' + split + '/', img_id_start=count, dataset=args.dataset)
         count += V_T.size(0)  # batch size
 
-        with open('result/dalle/summary_fresh_2.csv', 'a+', newline='') as write_obj:
+        with open('result/dalle/summary_fresh_final_two.csv', 'a+', newline='') as write_obj:
             # Create a writer object from csv module
             csv_writer = csv.writer(write_obj)
             # Add contents of list as last row in the csv file
